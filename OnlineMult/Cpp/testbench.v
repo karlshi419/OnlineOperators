@@ -23,28 +23,30 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module testbench;
-//Change Stage
-//parameter Stage = 11;
+//Change Stage_all
+//parameter Stage_all = 11;
+parameter N = Stage_all-3;
 
-parameter WL = 2*Stage;
+parameter WL = 2*N;
+parameter WL_out = 2*Stage_all;
 
 	// Inputs
 	reg [WL-1:0] x;
 	reg [WL-1:2] y;
 	reg clk;
 	reg nReset;
-	//reg [8*(Stage-1):0] xY;
-	//reg [7*Stage-1:0] yX;
-	reg [Stage*(Stage-1):0] xY;
-	reg [Stage*(Stage-1)-1:0] yX;
+	
+	reg [(N+1)*(N-3)+8:0] xY;		//each input contains #N fractional bits and 1 integer bit, 1st stage only contains 2 bits
+	reg [(N+1)*(N-3)+6:0] yX;
 
 	// Outputs
-	wire [WL-1:0] z;
+	wire [WL_out-1:0] z;
 	
 	//coefficients
-	//parameter Clock = 4;
 	//Change Clock
-	parameter Permutation = 9000;
+	//parameter Clock = 2.3;
+	//parameter Permutation = 1000000;
+	parameter Permutation = 12000;
 	
 	integer loopNo = 0;
 	integer fp;
@@ -53,11 +55,11 @@ parameter WL = 2*Stage;
 	reg [WL-1:0] x_mem[Permutation-1:0];
 	reg [WL-1:0] y_mem[Permutation-1:0];
 	
-	reg [Stage*(Stage-1):0] xY_mem[Permutation-1:0];
-	reg [Stage*(Stage-1)-1:0] yX_mem[Permutation-1:0];
+	reg [(N+1)*(N-3)+8:0] xY_mem[Permutation-1:0];
+	reg [(N+1)*(N-3)+6:0] yX_mem[Permutation-1:0];
 
 	// Instantiate the Unit Under Test (UUT)
-	//OM_top #(Stage) uut (
+	//OM_top uut (
 	OM_top uut (
 		.x(x), 
 		.y(y), 
@@ -78,9 +80,10 @@ parameter WL = 2*Stage;
 		nReset = 0;
 		
 		//Change Input A
-		//$readmemb("./MATLAB/Inputs/A_8.txt",y_mem);
-		
+
 		//Change Input B
+
+		//$readmemb("./MATLAB/Inputs/A_8.txt",y_mem);
 		//$readmemb("./MATLAB/Inputs/B_8.txt",x_mem);
 		
 		//$readmemb("./MATLAB/Inputs/A_TC_8.txt",xY_mem);	
@@ -104,34 +107,25 @@ parameter WL = 2*Stage;
 			nReset = 0;
 			#(Clock);
 			nReset = 1;
-		end
-//		#(Clock*10);
-//		$stop;						
+		end						
 		
-		
-		// stage=8
-/*		x = 16'b1001001001001010;
-		y = 14'b00101001011000;
-//		y=10'b0;
+		// stage=4
+/*		x = 8'b01001010;
+		y = 6'b011000;
 		xY = {	 
-					 8'b10001110,
-					 8'b10001110,
-					 8'b10001100,
-					 8'b10001000,
-					 8'b10010000,
-					 8'b10100000,
-					 8'b10000000,
-					 1'b1};
+					 5'b01001,
+					 4'b0101,
+					 3'b010,
+					 2'b01};
 		//xY = 31'b0;
 		yX = {	 
-					 8'b10110111,
-					 8'b10110110,
-					 8'b10111000,
-					 8'b10110000,
-					 8'b11000000,
-					 8'b11000000,
-					 8'b10000000};*/
-					 			 
+					 5'b01100,
+					 4'b0110,
+					 3'b010};
+		x = 16'b0100010101010110;			 			
+		y = 16'b0000000110100101;
+		xY = 65'b10011010010011010010011010010011100010011000010010000010100000011;
+		yX = 63'b000000100000000100000001000000010000000100000001000000010000000;*/
 		#(Clock*10);
 		$finish;
 
@@ -139,13 +133,14 @@ parameter WL = 2*Stage;
 	
 	initial begin
 		$timeformat(-9,3,"",8);
-		//fp=$fopen("./MATLAB/Data/SumPR_T400.txt");
+		//fp=$fopen("./MATLAB/Data/Sum_PR_.txt");
 		//Change Output
 
 		#(100*Clock);
 		//#Clock;
 		//#(1.5*Clock);	//behavioural simulations
 		//#(3.5*Clock);
+		//#(Clock*5);
 		//Change RstClk
 
 		for(RecNo=0;RecNo<Permutation;RecNo=RecNo+1)
@@ -156,7 +151,7 @@ parameter WL = 2*Stage;
 			$fwrite(fp,"%b\n",z);
 			//#(Clock*2.9);
 			//Change LoopClk2
-
+			
 		end
 	end
 	
