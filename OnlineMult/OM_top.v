@@ -19,94 +19,102 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module OM_top(x,y,z,clk,nReset,xY,yX);
-parameter Stage = 11;
-parameter WL = 2* Stage;
+parameter Stage_all = 11;		//overall stage number
+parameter N = Stage_all - 3;
 
-/*parameter xY = {
-					 8'b10001110,
-					 8'b10001110,
-					 8'b10001100,
-					 8'b10001000,
-					 8'b10010000,
-					 8'b10100000,
-					 8'b10000000,
-					 1'b1};
-
-parameter yX = {
-					 8'b10110110,
-					 8'b10111000,
-					 8'b10111000,
-					 8'b10110000,
-					 8'b11000000,
-					 8'b11000000,
-					 8'b10000000};*/
+parameter WL = 2*N;		   	//LSB 3 stages don't need inputs
+parameter WL_out = 2*Stage_all;	//word-length of output
 
 	input [WL-1:0] x;
 	input [WL-1:2] y;
-	output [WL-1:0] z;
+	output [WL_out-1:0] z;
 	input clk;
 	input nReset;
 	
-	//input [8*(Stage-1):0] xY;
-	//input [7*Stage-1:0] yX;
-	input [Stage*(Stage-1):0] xY;
-	input [Stage*(Stage-1)-1:0] yX;
+	input [(N+1)*(N-3)+8:0] xY;		//each input contains #N fractional bits and 1 integer bit, 1st stage only contains 2 bits
+	input [(N+1)*(N-3)+6:0] yX;	// not contain the last stage, as it will never be used
 	
 	reg [WL-1:0] x_reg;
 	reg [WL-1:2] y_reg;	//don't need y[1:0]
-	reg [WL-1:4] z_reg;
+	reg [WL-1:0] z_reg;
 	
+	wire [WL-1:0] temp_z;		//not include MSD 3 stages
 	
-	wire [WL-1:4] temp_z;
+	wire [2:0] Ws_s1;			//don't need MSB, MSB-1 and LSB
+	wire [5:0] Ws_s2,Wc_s2;
+	wire [6:0] Ws_s3,Wc_s3;
+	wire [N+4:1] Ws_s4in,Wc_s4in;
 	
-	//wire [12:0] Ws_s1,Wc_s1;
-	wire [Stage+4:0] Ws_s1,Wc_s1;
-
-	//wire [13*Stage-14:13] Ws,Wc;
-	wire [(Stage+5)*(Stage-1):Stage+5] Ws,Wc;
+	wire [(N+4)*(N-1):1] Ws,Wc;
 	
-	// 1st stage
-	genvar s1;
+	// 1st stage-------------------------------------------------------------------------------------------------	
+	//assign Ws_s1[0] = 1'b0;
+	assign Ws_s1[0] = (x_reg[1] ^ x_reg[0]) & xY[0];
+	assign Ws_s1[1] = (x_reg[0] & (xY[1] ^ xY[0])) | (x_reg[1] & xY[1]);				//derived from K-map analysis
+	assign Ws_s1[2] = (~xY[1] & xY[0] & x_reg[0]) | (xY[1] & x_reg[1]);	//derived from K-map analysis
+	
+	//--------------------------------------------------------------------------------------------------------------
+	
+	// 2nd stage 
+	OM_MSD2 OM_stage2(.x(x_reg[3:2]),.y(y_reg[3:2]),.Ws_in(Ws_s1),.xY_in(xY[4:2]),.yX_in(yX[2:0]),.Ws_out(Ws_s2),.Wc_out(Wc_s2));
+	
+	// 3rd stage
+	OM_MSD3 OM_stage3(.x(x_reg[5:4]),.y(y_reg[5:4]),.Ws_in(Ws_s2),.Wc_in(Wc_s2),.xY_in(xY[8:5]),.yX_in(yX[6:3]),.Ws_out(Ws_s3),.Wc_out(Wc_s3));
+	//--------------------------------------------------------------------------------------------------------------
+	
+	assign Ws_s4in[N+4:N-2]=Ws_s3;
+	assign Wc_s4in[N+4:N-2]=Wc_s3;
+	genvar s4;
 	generate
-		//for (s1=0;s1<12;s1=s1+1)
-		for (s1=0;s1<Stage;s1=s1+1)
-		begin:label_s1
-			//if(s1==7) begin
-			if(s1==Stage-1) begin
-				assign Ws_s1[s1+1] = (x_reg[1] & ~x_reg[0] & xY[0]) | (~x_reg[1] & x_reg[0] & ~xY[0]);
-			end
-			else begin
-				assign Ws_s1[s1+1] = ~x_reg[1] & x_reg[0];
-			end
+		for (s4=1;s4<N-2;s4=s4+1)
+		begin:wordlength
+			assign Ws_s4in[s4]=1'b0;
+			assign Wc_s4in[s4]=1'b0;			
 		end
 	endgenerate
-	//assign Ws_s1[0] = 1'b0;
-	assign Ws_s1[Stage+4:Stage+1] = 4'b0;
-	assign Ws_s1[0] = ~x_reg[1] & x_reg[0];
-	assign Wc_s1 = 0;
-
 	
-	// 2nd stage
-	//OM_Main OM2(.x(x_reg[3:2]),.y(y_reg[3:2]),.Ws_in(Ws_s1),.Wc_in(Wc_s1),.xY_in(xY2),.yX_in(yX2),.z(),.Ws_out(Ws_s2),.Wc_out(Wc_s2));
-//	OM_Main OM2(.x(x_reg[3:2]),.y(y_reg[3:2]),.Ws_in(Ws_s1),.Wc_in(Wc_s1),.xY_in(xY[8:1]),.yX_in(yX[7:0]),.z(),.Ws_out(Ws[25:13]),.Wc_out(Wc[25:13]));
-	
-	//3rd stage
-//	OM_Main OM3(.x(x_reg[5:4]),.y(y_reg[5:4]),.Ws_in(Ws[25:13]),.Wc_in(Wc[25:13]),.xY_in(xY[16:9]),.yX_in(yX[15:8]),.z(temp_z[5:4]),.Ws_out(Ws[38:26]),.Wc_out(Wc[38:26]));
 	//4th stage
-//	OM_Main OM4(.x(x_reg[7:6]),.y(y_reg[7:6]),.Ws_in(Ws[38:26]),.Wc_in(Wc[38:26]),.xY_in(xY[24:17]),.yX_in(yX[23:16]),.z(temp_z[7:6]),.Ws_out(),.Wc_out());
+/*	OM_Main #(N) OM_stage4(.x(x_reg[7:6]),.y(y_reg[7:6]),.Ws_in(Ws_s4in),.Wc_in(Wc_s4in),
+								  .xY_in(xY[N+9:9]),.yX_in(yX[N+7:7]),
+								  .z(temp_z[1:0]),
+								  .Ws_out(Ws[N+4:0]),.Wc_out(Wc[N+4:0]));*/
+								  
+	OM_MSD4 #(N) OM_stage4(.x(x_reg[7:6]),.y(y_reg[7:6]),.Ws_in(Ws_s4in),.Wc_in(Wc_s4in),
+									.xY_in(xY[N+9:9]),.yX_in(yX[N+7:7]),
+									.z(temp_z[1:0]),
+									.Ws_out(Ws[N+4:1]),.Wc_out(Wc[N+4:1]));
+
 	
 	genvar som;	//stage number of OM
 	generate
-		for (som=1;som<Stage;som=som+1)
-		begin:label
-			if (som==1)	//the second stage
-				//OM_Main OM(.x(x_reg[3:2]),.y(y_reg[3:2]),.Ws_in(Ws_s1),.Wc_in(Wc_s1),.xY_in(xY[8:1]),.yX_in(yX[7:0]),.z(),.Ws_out(Ws[25:13]),.Wc_out(Wc[25:13]));
-				OM_Main #(Stage) OM(.x(x_reg[3:2]),.y(y_reg[3:2]),.Ws_in(Ws_s1),.Wc_in(Wc_s1),.xY_in(xY[Stage:1]),.yX_in(yX[Stage-1:0]),.z(),.Ws_out(Ws[2*Stage+9:Stage+5]),.Wc_out(Wc[2*Stage+9:Stage+5]));
-			else if (som==Stage-1)	//final stage, don't need output
-				OM_Main #(Stage) OM(.x(x_reg[2*som+1:2*som]),.y(y_reg[2*som+1:2*som]),.Ws_in(Ws[(Stage+5)*som-1:(Stage+5)*som-(Stage+5)]),.Wc_in(Wc[(Stage+5)*som-1:(Stage+5)*som-(Stage+5)]),.xY_in(xY[Stage*som:Stage*(som-1)+1]),.yX_in(yX[Stage*som-1:Stage*som-Stage]),.z(temp_z[2*som+1:2*som]),.Ws_out(),.Wc_out());				
-			else begin
-				OM_Main #(Stage) OM(.x(x_reg[2*som+1:2*som]),.y(y_reg[2*som+1:2*som]),.Ws_in(Ws[(Stage+5)*som-1:(Stage+5)*som-(Stage+5)]),.Wc_in(Wc[(Stage+5)*som-1:(Stage+5)*som-(Stage+5)]),.xY_in(xY[Stage*som:Stage*(som-1)+1]),.yX_in(yX[Stage*som-1:Stage*som-Stage]),.z(temp_z[2*som+1:2*som]),.Ws_out(Ws[(Stage+5)*som+(Stage+4):(Stage+5)*som]),.Wc_out(Wc[(Stage+5)*som+Stage+4:(Stage+5)*som]));				
-			end			
+		for (som=1;som<N-3;som=som+1)
+		begin:label_OM
+				OM_Main #(N) OM(	  .x(x_reg[2*som+7:2*som+6]),.y(y_reg[2*som+7:2*som+6]),
+										  .Ws_in(Ws[(N+4)*(som-1)+(N+4):(N+4)*(som-1)+1]),
+										  .Wc_in(Wc[(N+4)*(som-1)+(N+4):(N+4)*(som-1)+1]),
+										  .xY_in(xY[(N+1)*som+9+N:(N+1)*som+9]),
+										  .yX_in(yX[(N+1)*som+7+N:(N+1)*som+7]),
+										  .z(temp_z[2*som+1:2*som]),
+										  .Ws_out(Ws[(N+4)*som+(N+4):(N+4)*som+1]),
+										  .Wc_out(Wc[(N+4)*som+(N+4):(N+4)*som+1]));					
+		end
+	endgenerate
+	
+	genvar sl;	//stage number of least significant stages
+	generate
+		for(sl=N-3;sl<N;sl=sl+1)
+		begin:label_sl
+			if(sl==N-1)	//final stage, no output
+				OM_LSB #(N) OM_L(.Ws_in(Ws[(N+4)*(sl-1)+(N+4):(N+4)*(sl-1)+1]),
+									  .Wc_in(Wc[(N+4)*(sl-1)+(N+4):(N+4)*(sl-1)+1]),
+									  .z(temp_z[2*sl+1:2*sl]),
+									  .Ws_out(),.Wc_out());
+			else
+				OM_LSB #(N) OM_L(.Ws_in(Ws[(N+4)*(sl-1)+(N+4):(N+4)*(sl-1)+1]),
+									  .Wc_in(Wc[(N+4)*(sl-1)+(N+4):(N+4)*(sl-1)+1]),
+									  .z(temp_z[2*sl+1:2*sl]),
+									  .Ws_out(Ws[(N+4)*sl+(N+4):(N+4)*sl+1]),
+									  .Wc_out(Wc[(N+4)*sl+(N+4):(N+4)*sl+1]));
 		end
 	endgenerate
 	
@@ -121,7 +129,7 @@ parameter yX = {
 		end
 	end
 	
-	assign z = {z_reg,4'b0};
+	assign z = {z_reg,6'b0};
 
 
 endmodule
