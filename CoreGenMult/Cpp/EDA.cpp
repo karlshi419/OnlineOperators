@@ -21,13 +21,12 @@ int main() {
 	int LoopNo;
 	int BW_real;	//actual bitwidth of certain loop of simulation
 
-	int Stage;
+	int Stage = 0;
 	int MSB = 1;
 	int LSB = 0;
 
 	system("vlib lib");
 	system("vmap work lib");
-	
 
 	//Readin Sample Period Value
 	float Ts[MaxSampleNo];
@@ -41,6 +40,7 @@ int main() {
 		ReadIdx ++;
 	}
 	File.close();	
+	//cout<<"123"<<endl;
 
 	//Readin RstClk Value
 	float RstClk_Value[MaxSampleNo];
@@ -80,17 +80,16 @@ int main() {
 	File.close();
 	cout<<"File Read in: Complete!"<<endl;
 	cout<<"******************************************"<<endl;
-	cout<<"Please specify the simulation type (0 for Behavioural, 1 for P&R):"<<endl;
+	cout<<"Please specify the simulation type (0 for Error-free, 1 for P&R):"<<endl;
 	cin>>Sim_Flag;
 
-	cout<<"Please specify total stage number(3 + real stage number):"<<endl;
-	cin>>Stage;
-	BW_real = Stage-3;				
+	//cout<<"Please specify total stage number(3 + real stage number):"<<endl;
+	cout<<"Please speficy total word-length:"<<endl;
+	cin>>BW_real;
+	//BW_real = Stage-3;				
 	
 	if(Sim_Flag==0){					//error-free simulation
-		//LoopNo=1;
-		cout<<"Please specify how many different sample periods (Max."<<ReadIdx-1<<"):"<<endl;
-		cin>>LoopNo;
+		LoopNo=1;
 	}
 	else{								//post P&R simulation
 		cout<<"Please specify how many different sample periods (Max."<<ReadIdx-1<<" for uniform data): "<<endl;
@@ -98,6 +97,11 @@ int main() {
 	}
 			
 	for (int j=MSB; j<MSB+1; j++){	
+//		if(j+LSB<2)
+//			//BW_real = 2;				//minimum bitwidth, in case LSB=0
+//			continue;
+//		else
+//			BW_real = j + LSB;				//the actual bitwidth into design
 		for (int i=0; i<LoopNo; i++){
 			ifstream old_testbench;
 			ofstream new_testbench;
@@ -108,8 +112,8 @@ int main() {
 			string testbench;
 		
 			if(Sim_Flag==0){				//Error-free simulation
-				testbench="./BehvModel/testbench_behv.v";
-				new_testbench.open("./BehvModel/Testbench2_behv.v",ios::out);
+				testbench="testbench_EF.v";
+				new_testbench.open("Testbench2_EF.v",ios::out);
 			}
 			else{						//post P&R simulation
 				testbench="testbench.v";
@@ -126,31 +130,28 @@ int main() {
 				getline(old_testbench,getNextLine);	
 				//read in one line from oldlist and save to getNextLine 
 				
-				if(getNextLine.find("Change BW_real",0)!=string::npos){	//If found the key word
-					new_testbench<<"parameter BW_real = "<<BW_real<<";"<<endl;
+				if(getNextLine.find("Change WL",0)!=string::npos){	//If found the key word
+					new_testbench<<"parameter WL = "<<BW_real<<";"<<endl;
 				}
-				if(getNextLine.find("Change Stage_all",0)!=string::npos){	//If found the key word
-					new_testbench<<"parameter Stage_all = "<<Stage<<";"<<endl;
+				if(getNextLine.find("Change Stage",0)!=string::npos){	//If found the key word
+					new_testbench<<"parameter Stage = "<<Stage<<";"<<endl;
 				}
 				if(getNextLine.find("Change Clock",0)!=string::npos){	//If found the key word
 					new_testbench<<"parameter Clock = "<<Ts[i]<<";"<<endl;
 				}
 //				Change input based on the given word-length
 				if(getNextLine.find("Change Input A",0)!=string::npos){	//If found the key word
-					new_testbench<<"$readmemb(\"./Inputs/AB/A_"<<BW_real<<".txt\",y_mem);"<<endl;
-					new_testbench<<"$readmemb(\"./Inputs/AB/A_TC_"<<BW_real<<".txt\",xY_mem);"<<endl;
+					new_testbench<<"$readmemb(\"./Inputs/AB/A_"<<BW_real<<".txt\",A_mem);"<<endl;
+					//new_testbench<<"$readmemb(\"./Inputs/AB/A_TC_"<<BW_real<<".txt\",xY_mem);"<<endl;
 				}
 				if(getNextLine.find("Change Input B",0)!=string::npos){	//If found the key word
-					new_testbench<<"$readmemb(\"./Inputs/AB/B_"<<BW_real<<".txt\",x_mem);"<<endl;
-					new_testbench<<"$readmemb(\"./Inputs/AB/B_TC_"<<BW_real<<".txt\",yX_mem);"<<endl;
+					new_testbench<<"$readmemb(\"./Inputs/AB/B_"<<BW_real<<".txt\",B_mem);"<<endl;
+					//new_testbench<<"$readmemb(\"./Inputs/AB/B_TC_"<<BW_real<<".txt\",yX_mem);"<<endl;
 				}
 
 				//Change Output file name
-				if(getNextLine.find("Change Output",0)!=string::npos){	
-					if(Sim_Flag==0)
-						new_testbench<<"fp=$fopen(\"./Data/AutoTest/Behv/Sum_WL"<<BW_real<<"_T"<<Ts[i]<<".txt\");"<<endl;	
-					else
-						new_testbench<<"fp=$fopen(\"./Data/AutoTest/PR/SumPR_WL"<<BW_real<<"_T"<<100*Ts[i]<<".txt\");"<<endl;	
+				if(getNextLine.find("Change Output",0)!=string::npos){			  
+					new_testbench<<"fp=$fopen(\"./Data/AutoTest/SumPR_WL"<<BW_real<<"_T"<<100*Ts[i]<<".txt\");"<<endl;	
 				}
 				if(getNextLine.find("Change Result Shift",0)!=string::npos){			  
 					new_testbench<<"$fwrite(fp,\"%d\\n\",Sum>>"<<8-LSB<<");"<<endl;
@@ -193,13 +194,12 @@ int main() {
 			new_testbench.close();
 
 			if(Sim_Flag==0){				//Error-free simulation
-				//system("vlog CS2Bit.v CSnBit.v CarrySelectAdder.v Testbench2_EF.v");
-				system("vlog ./BehvModel/CarrySaveAdder.v ./BehvModel/CSA_top.v ./BehvModel/OM_Main.v ./BehvModel/OM_top.v ./BehvModel/Testbench2_behv.v");
+				system("vlog CS2Bit.v CSnBit.v CarrySelectAdder.v Testbench2_EF.v");
 				system("vsim -c -t 1ps -novopt -do test.tcl -lib work work.testbench");
 			}
 			else{							//post-P&R simulation				
 				//system("vlog ./TimingModels/MSB7LSB7/netgen/par/CarrySelectAdder_timesim.v Testbench2.v");
-				system("vlog ./netgen/par/OM_top_timesim.v Testbench2.v");
+				system("vlog ./netgen/par/Mult_top_timesim.v Testbench2.v");
 				system("vsim -c -t 1ps +notimingchecks -novopt -do test.tcl -L F:/Xilinx/14.1/ISE_DS/ISE/verilog/mti_se/10.1/nt64/secureip -L F:/Xilinx/14.1/ISE_DS/ISE/verilog/mti_se/10.1/nt64/simprims_ver -lib work work.testbench glbl");
 			}
 		}

@@ -3,9 +3,9 @@
 // Company: 
 // Engineer: 
 // 
-// Create Date:    15:37:38 07/18/2013 
+// Create Date:    15:29:19 08/21/2013 
 // Design Name: 
-// Module Name:    OM_Main 
+// Module Name:    OM_MSD4 
 // Project Name: 
 // Target Devices: 
 // Tool versions: 
@@ -18,29 +18,27 @@
 // Additional Comments: 
 //
 //////////////////////////////////////////////////////////////////////////////////
-module OM_Main(x,y,Ws_in,Wc_in,xY_in,yX_in,z,Ws_out,Wc_out);
-parameter WL_XY = 8;	//word-length of xY and yX
-localparam delay = 2;	
-	input [1:0] x;
-	input [1:0] y;
-	input [WL_XY+4:1] Ws_in;
-	input [WL_XY+4:1] Wc_in;
-	//input [WL_XY-1:0] xY_in,yX_in;
-	input [WL_XY:0] xY_in,yX_in; //contains WL_XY bit fractional bits and 1-bit integer for sign detection
+module OM_MSD4(x,y,Ws_in,Wc_in,xY_in,yX_in,z,Ws_out,Wc_out);
+parameter WL_XY = 8;
+localparam delay =2;
+	input [1:0] x,y;
+	input [WL_XY+4:1] Ws_in,Wc_in;
+	input [WL_XY:0] xY_in,yX_in;
+	
 	output [1:0] z;
 	output [WL_XY+4:1] Ws_out;
-	output [WL_XY+4:1] Wc_out;	
+	output [WL_XY+4:1] Wc_out;
 	
-	//wire [WL_XY+4:0] xY,yX;
-	//wire [WL_XY+4:0] temp_Wsout,temp_Wcout;
 	wire [WL_XY+1:0] xY,yX;
-	//wire [WL_XY:0] xY,yX;
 	wire [WL_XY+1:0] temp_Wsout,temp_Wcout;
-	wire [WL_XY+4:1] Wsout_sft,Wcout_sft;		//the shifted output
+	wire [WL_XY+4:1] Wsout_sft;
+	wire [WL_XY+4:1] Wcout_sft;
 	
-	wire [2:0] Ws_sel,Wc_sel;		//truncate bits to select z
+	wire [2:0] Ws_sel;
+	wire [2:0] Wc_sel;
 	wire [2:0] W;
-	wire [1:0] temp_z;				//selected output z
+	
+	wire [1:0] temp_z;
 	wire temp_p;
 	
 	reg [WL_XY+4:1] Ws_in_reg = 0;
@@ -53,7 +51,7 @@ localparam delay = 2;
 	
 	assign Ws_sel = Ws_in_reg[WL_XY+4:WL_XY+2];	//truncate, only use 3 bits
 	assign Wc_sel = Wc_in_reg[WL_XY+4:WL_XY+2];	//truncate, only use 3 bits
-	
+	 
 	//------------------------------------------------------------------------------------------------
 	//Input processing to generate xY
 	//------------------------------------------------------------------------------------------------
@@ -72,14 +70,14 @@ localparam delay = 2;
 			else begin
 				assign xY[i] = xY[WL_XY];	//sign extension
 				assign yX[i] = yX[WL_XY];
-			end		
+			end			
 		end
 	endgenerate
 	
 	//------------------------------------------------------------------------------------------------
 	//connection to CSA and RCA
 	//------------------------------------------------------------------------------------------------	
-	CSA_top #(WL_XY+2) CSA1(.a(xY),.b(Ws_in_reg[WL_XY+1:1]),.c(Wc_in_reg[WL_XY+1:1]),.d(yX),.cin1(y[0]),.cin2(x[0]),.Ws(temp_Wsout),.Wc(temp_Wcout));	//carry-save adder
+	CSA_top #(WL_XY+2) CSA_Stage4(.a(xY),.b(Ws_in_reg[WL_XY+1:1]),.c(Wc_in_reg[WL_XY+1:1]),.d(yX),.cin1(y[0]),.cin2(x[0]),.Ws(temp_Wsout),.Wc(temp_Wcout));	//carry-save adder
 	assign W = Ws_sel + Wc_sel;
 	
 	//------------------------------------------------------------------------------------------------
@@ -87,12 +85,13 @@ localparam delay = 2;
 	//------------------------------------------------------------------------------------------------
 	assign temp_z[1] = ~W[2] & (W[1] | W[0]);
 	assign temp_z[0] = W[2] & (~W[1] | ~W[0]);
-	
+
 	//------------------------------------------------------------------------------------------------
 	//calculate the output P
 	//------------------------------------------------------------------------------------------------
 	//assign temp_p = W[1] ^ (temp_z[1] ^ temp_z[0]);
 	assign temp_p = ((W[2] | W[0]) & (~W[1])) | (W[2] & W[0]);
+	
 	//------------------------------------------------------------------------------------------------
 	//generate shifted outputs
 	//------------------------------------------------------------------------------------------------
@@ -103,5 +102,6 @@ localparam delay = 2;
 	assign Ws_out = Wsout_sft;
 	assign Wc_out = Wcout_sft;
 	
+
 
 endmodule
