@@ -1,0 +1,33 @@
+
+#Created by Constraints Editor (xc6vlx240t-ff1156-1) - 2014/03/14
+NET "clk" TNM_NET = "clk";
+TIMESPEC TS_clk = PERIOD "clk" 2 ns HIGH 50 %;
+
+
+# PlanAhead Generated physical constraints 
+#
+#NET "x[0]" LOC = N33;
+#NET "x[1]" LOC = M33;
+#NET "x[2]" LOC = L29;
+#NET "x[3]" LOC = L30;
+#NET "x[4]" LOC = P25;
+#NET "x[5]" LOC = P26;
+#NET "x[6]" LOC = R28;
+#NET "x[7]" LOC = R27;
+#NET "y[0]" LOC = R31;
+#NET "y[1]" LOC = R32;
+#NET "y[2]" LOC = R26;
+#NET "y[3]" LOC = T26;
+#NET "y[4]" LOC = K34;
+#NET "y[5]" LOC = L34;
+#NET "y[6]" LOC = M30;
+#NET "y[7]" LOC = N30;
+#NET "z[1]" LOC = G28;
+#NET "z[2]" LOC = A28;
+#NET "z[3]" LOC = A29;
+#NET "z[4]" LOC = F28;
+#NET "z[5]" LOC = E28;
+#NET "z[6]" LOC = A30;
+#NET "z[7]" LOC = B30;
+#NET "z[8]" LOC = E29;
+#NET "z[9]" LOC = F29;
